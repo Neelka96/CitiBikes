@@ -8,6 +8,7 @@
 \f0\fs24 \cf0 Each dashboard is a story that should focus on a a few key questions to describe a phenomenon.\
 \
 Dashboards:\
+(A duplicate view using New Jersey could be introduced for every visualization, as well as a comparison vs. new jersey)\
 \
 1) General CitiBike usage throughout the years:\
 	[Generally referred to \'93Timespan\'94 is a detail that can be parsed by day, month, and year]\
@@ -20,13 +21,40 @@ Dashboards:\
 		- The total number of annual members per segment\
 		- What segment is being recorded\
 		- All files needed. This will be over time, so collect as before with segmentation attached to 		  counts.\
-	-c) Are electric bikes becoming more popular?\
+\
+	-d) Are electric bikes becoming more popular?\
 		- The total number of electric bikes\
 		- What segment of time is being recorded\
 		- There is a cutoff point in when electric bikes started being used. It is in the very beginning of 		  2020 when this switch was made. This is when files should start being read for electric bike 		  usage.\
 \
-2) Are people afraid to use electric bikes for longer rides?\
-	-a) \
+2) What is the current demand for the CitiBikes?\
+	[All questions should be compared the added factor of a level of detail that includes what the usage is 	of differently binned demand of bikes. (Duration, distance, and the kind of bike)]\
+	The timespan in question should likely be for the past year in order to capture the most recent 	seasonality cycles\
+	-a) How does seasonality and time of day affect the need of bikes?\
+		- The season and hour that the ride was made at (probably the starting point)\
+		- What the different groupings are for those rides (usage types as stated before)\
+		- The quantities for the different bins created\
+	-b) What stations are the most frequently used for starting points, ending points, and for both?\
+		- Starting point frequencies of usage\
+		-  Ending point frequencies of usage\
+		- Combination of start point and end point constraints frequencies of usage\
+		- Binning these quantities into usage types and quantifying them\
+	\'97>  Can we figure out where bikes with specifically binned usage types will end up?\
+	\'97> Potentially no, but maybe we can create a visualization for the most popular routes across NYC,\
+		what would this require?\
+\
+\
+3) Do members use the bikes differently than non-members? \
+	-a) Are there greater losses for temporary customer usage?\
+		i. Do non-members use the bikes for long periods of time and long distances?\
+			\'97> Long usage should necessitate membership (over a month especially)\
+			\'97> Either abuse or an outlier\
+		ii. Do non-members use the bikes for long periods of time and for very short distances?\
+			\'97> Short distance with long term handling should necessitate membership (again over 				a month probably)\
+	-b) Do members get more of the bikes than non-users? If not, how can we curb that?\
+		i. How long are the rides that members take? What about for non-members?\
+			- Need the length of rides that members take vs. non-members\
+		ii. Does this happen at a specific time? Or with a specific kind of bike?\
 \
 \
 3) Are members more likely to use a bike for a longer period of time?\
@@ -37,6 +65,4 @@ Dashboards:\
 \
 6) Where do bikes usually end up at after they\'92re done being used? Where do they need to be moved to in order to meet demand?\
 \
-7) Where are the longest bike rides to and from usually?\
-\
-8) }
+7) Where are the longest bike rides to and from usually?}
