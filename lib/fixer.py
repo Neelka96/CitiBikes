@@ -1,5 +1,7 @@
 import pandas as pd
 from pathlib import Path
+from collections.abc import Callable
+from typing import Union, Literal
 
 from lib import func
 
@@ -11,7 +13,6 @@ class Fixer:
     
     def set_field_vars(self):
         self.col_map = {
-            # 'ride_id': {'bikeid', 'bike_id'},
             'membership': {'member_casual', 'usertype', 'user_type'}
             ,'electric': {'rideable_type'}
             ,'start_dt': {'started_at', 'starttime', 'start_time'}
@@ -51,46 +52,84 @@ class Fixer:
         norm = func.normalize_col(col)
         return self.alias_map.get(norm, norm)
 
-    def apply_bool_maps(self, df: pd.DataFrame) -> pd.DataFrame:
+    def apply_bool_maps(self) -> pd.DataFrame:
         for col, mapping in self.bool_maps.items():
-            if col not in df.columns:
-                df[col] = False
+            if col not in self.df.columns:
+                self.df[col] = False
             else:
-                df[col] = (
-                    df[col]
+                self.df[col] = (
+                    self.df[col]
                         .astype(str)
                         .str.strip()
                         .str.lower()
                         .map(mapping)
                 )
-        return df
+        return self
     
-    def add_vector_dist(self, df: pd.DataFrame, units: str = 'mi') -> pd.DataFrame:
+    def add_vector_dist(self, units: str = 'mi') -> pd.DataFrame:
         cols = ['lat1', 'lng1', 'lat2', 'lng2']
-        points = [df[col] for col in cols]
-        name = f'vector_dist_{units}'
-        df[name] = func.haversine_vectorized(*points, unit = units).round(4)
-        return df, name
+        points = [self.df[col] for col in cols]
+        name = f'dist_{units}'
+        self.df[name] = func.haversine_vectorized(*points, unit = units).round(4)
+        self.fields.append(name)
+        return self
     
-    def add_duration_time(self, df: pd.DataFrame) -> pd.DataFrame:
+    def add_duration_time(self) -> pd.DataFrame:
         cols = ['start_dt', 'end_dt']
         name = 'duration_sec'
-        df[name] = (df[cols[1]] - df[cols[0]]).dt.total_seconds()
-        return df, name
-
-    def load_csv(self, path: Path, **kwargs) -> pd.DataFrame:
-        df: pd.DataFrame = pd.read_csv(path, **kwargs)
-        df.rename(columns = lambda c: self.canonicalise(c), inplace = True)
-        df['start_dt'] = pd.to_datetime(df['start_dt'])
-        df['end_dt'] = pd.to_datetime(df['end_dt'])
-        df = self.apply_bool_maps(df)
-        df, dist_field = self.add_vector_dist(df)
-        df, dur_field = self.add_duration_time(df)
-        self.fields.append(dist_field)
-        self.fields.append(dur_field)
-        self.df = df[self.fields]
+        self.df[name] = (self.df[cols[1]] - self.df[cols[0]]).dt.total_seconds()
+        self.fields.append(name)
         return self
 
+    def load_csv(self, path: Path, **kwargs) -> pd.DataFrame:
+        self.df: pd.DataFrame = pd.read_csv(path, **kwargs)
+        self.df.rename(columns = lambda c: self.canonicalise(c), inplace = True)
+        self.df['start_dt'] = pd.to_datetime(self.df['start_dt'])
+        self.df['end_dt'] = pd.to_datetime(self.df['end_dt'])
+        self.apply_bool_maps()
+        self.add_vector_dist()
+        self.add_duration_time()
+        self.df = self.df[self.fields].dropna(how = 'any')
+        return self
+
+    def get_view_per_station(
+            self
+            ,view: Literal['dist_mi', 'duration_sec'] = 'dist_mi'
+            ,agg_func: Callable[[pd.Series], Union[int, float]] = pd.Series.sum
+        ) -> pd.Series:
+        per_startStation = pd.DataFrame(self.df.groupby('start_station')[view].agg(agg_func))
+        per_endStation = pd.DataFrame(self.df.groupby('end_station')[view].agg(agg_func))
+        per_station = \
+            per_startStation.merge(per_endStation, how = 'outer', left_index = True, right_index = True).fillna(0)
+        
+        per_station[f'{view}_agg'] = per_station[f'{view}_x'] + per_station[f'{view}_y']
+        return per_station[f'{view}_agg']
+
+    def get_temporal_summary(
+            self
+            ,dt_field: Literal['start_dt', 'end_dt'] = 'start_dt'
+            ,freq: Literal['min', 'h', 'D', 'ME', 'YE'] = 'D'
+            ,agg_func: Callable[[pd.Series], Union[int, float]] = [pd.Series.sum, pd.Series.mean]
+            ,agg_map: dict[str, Callable[[pd.Series], Union[int, float]]] = None
+        ) -> pd.DataFrame:
+        df = self.df.copy()
+        df = df.set_index(dt_field)
+        if agg_map is None:
+            agg_map = {}
+            if 'duration_sec' in df.columns:
+                agg_map['duration_sec'] = agg_func
+            if any(col.startswith('dist_') for col in df.columns):
+                for col in [c for c in df.columns if c.startswith('dist_')]:
+                    agg_map[col] = agg_func
+            if 'membership' in df.columns:
+                agg_map['membership'] = agg_func[0]
+            if 'electric' in df.columns:
+                agg_map['electric'] = agg_func[0]
+            if not agg_map:
+                agg_map = {'start_dt': pd.Series.count}
+        summary = df.resample(freq).agg(agg_map)
+        summary.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in summary.columns.values]
+        return summary.reset_index().fillna(0)
 
 # EOF
 
