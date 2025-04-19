@@ -1,6 +1,4 @@
 import pandas as pd
-import numpy as np
-import re
 from pathlib import Path
 from math import floor, log
 from sys import getsizeof
@@ -36,30 +34,6 @@ def iter_subfiles(year: int):
                 csv: Path
                 if csv.is_file() and csv.suffix == '.csv':
                     yield csv.resolve()
-
-#################################################
-
-def haversine_vectorized(lat1: pd.Series, lng1: pd.Series, lat2: pd.Series, lng2: pd.Series, unit = 'km' or 'mi') -> pd.Series:
-    lat1, lng1, lat2, lng2 = map(np.radians, [lat1, lng1, lat2, lng2])
-    delta_lat = lat2 - lat1
-    delta_lng = lng2 - lng1
-    a = (np.sin(delta_lat / 2.0)) ** 2 + np.cos(lat1) * np.cos(lat2) * (np.sin(delta_lng / 2.0)) ** 2
-    c = 2 * np.arcsin(np.sqrt(a))
-    if unit == 'km':
-        R = 6371
-    elif unit == 'mi':
-        R = 3959
-    result: pd.Series
-    result = R * c
-    return result
-
-#################################################
-
-def normalize_col(col: str) -> str:
-    col = col.strip().lower()
-    col = re.sub(r'[.\s\-]+','_', col)
-    col = re.sub(r'[^\w_]', '', col)
-    return col
 
 # EOF
 

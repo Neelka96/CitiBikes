@@ -1,9 +1,34 @@
+import re
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from collections.abc import Callable
 from typing import Union, Literal
 
-from lib import func
+
+def haversine_vectorized(lat1: pd.Series, lng1: pd.Series, lat2: pd.Series, lng2: pd.Series, unit = 'km' | 'mi') -> pd.Series:
+    lat1, lng1, lat2, lng2 = map(np.radians, [lat1, lng1, lat2, lng2])
+    delta_lat = lat2 - lat1
+    delta_lng = lng2 - lng1
+    a = (np.sin(delta_lat / 2.0)) ** 2 + np.cos(lat1) * np.cos(lat2) * (np.sin(delta_lng / 2.0)) ** 2
+    c = 2 * np.arcsin(np.sqrt(a))
+    if unit == 'km':
+        R = 6371
+    elif unit == 'mi':
+        R = 3959
+    result: pd.Series
+    result = R * c
+    return result
+
+###################################C##############
+
+def normalize_col(col: str) -> str:
+    col = col.strip().lower()
+    col = re.sub(r'[.\s\-]+','_', col)
+    col = re.sub(r'[^\w_]', '', col)
+    return col
+
+#################################################
 
 class Fixer:
     def __init__(self, path: Path, **kwargs):
@@ -31,9 +56,9 @@ class Fixer:
         }
         self.electric_map = {'classic_bike': False, 'electric_bike': True}
         self.bool_maps = {
-            'membership': {func.normalize_col(key) : val 
+            'membership': {normalize_col(key) : val 
                         for key, val in self.membership_map.items()},
-            'electric': {func.normalize_col(key) : val 
+            'electric': {normalize_col(key) : val 
                         for key, val in self.electric_map.items()}
         }
         return self
@@ -42,14 +67,14 @@ class Fixer:
         self.alias_map = {}
         for canon, variants in self.col_map.items():
             for alias in variants:
-                self.alias_map[func.normalize_col(alias)] = canon
+                self.alias_map[normalize_col(alias)] = canon
         dups = [key for key, _ in self.alias_map.items() if key in self.fields]
         if dups:
             raise ValueError(f'Aliases shadow canonical names: {alias}')
         return self
     
     def canonicalise(self, col: str) -> str:
-        norm = func.normalize_col(col)
+        norm = normalize_col(col)
         return self.alias_map.get(norm, norm)
 
     def apply_bool_maps(self) -> pd.DataFrame:
@@ -70,7 +95,7 @@ class Fixer:
         cols = ['lat1', 'lng1', 'lat2', 'lng2']
         points = [self.df[col] for col in cols]
         name = f'dist_{units}'
-        self.df[name] = func.haversine_vectorized(*points, unit = units).round(4)
+        self.df[name] = haversine_vectorized(*points, unit = units).round(4)
         self.fields.append(name)
         return self
     
@@ -92,20 +117,24 @@ class Fixer:
         self.df = self.df[self.fields].dropna(how = 'any')
         return self
 
-    def get_view_per_station(
+    def view_per_station(
             self
-            ,view: Literal['dist_mi', 'duration_sec'] = 'dist_mi'
+            ,view: Literal['dist_mi', 'duration_sec'] = None
             ,agg_func: Callable[[pd.Series], Union[int, float]] = pd.Series.sum
         ) -> pd.Series:
+        if view is None:
+            view = 'dist_mi'
         per_startStation = pd.DataFrame(self.df.groupby('start_station')[view].agg(agg_func))
         per_endStation = pd.DataFrame(self.df.groupby('end_station')[view].agg(agg_func))
         per_station = \
             per_startStation.merge(per_endStation, how = 'outer', left_index = True, right_index = True).fillna(0)
         
-        per_station[f'{view}_agg'] = per_station[f'{view}_x'] + per_station[f'{view}_y']
-        return per_station[f'{view}_agg']
+        per_station[f'{view}'] = per_station[f'{view}_x'] + per_station[f'{view}_y']
+        return_frame = per_station[f'{view}']
+        return_frame.index.name = 'station'
+        return return_frame.reset_index()
 
-    def get_temporal_summary(
+    def temporal_summary(
             self
             ,dt_field: Literal['start_dt', 'end_dt'] = 'start_dt'
             ,freq: Literal['min', 'h', 'D', 'ME', 'YE'] = 'D'
