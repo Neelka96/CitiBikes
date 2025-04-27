@@ -1,7 +1,8 @@
-# CitiBike Tableau Analysis Repository
+# CitiBike Tableau Analysis Repository  
 
-**Data Visualization Bootcamp Module 18** – Tableau Citi Bike Analysis  
-**Cohort:** UTA‑VIRT‑DATA‑PT‑11‑2024‑U‑LOLC  
+**Module 18 Challenge**  
+**EdX/UT Data Analytics and Visualization Bootcamp**  
+**Cohort UTA-VIRT-DATA-PT-11-2024-U-LOLC**  
 **Author:** Neel Agarwal  
 
 ---
