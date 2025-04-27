@@ -1,11 +1,8 @@
 # Mac OS Config File
 .DS_Store
 
-# Custom Dir
-NYC/
-Jersey/
-Summaries/
-
+# CSV File
+citibike_data.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
